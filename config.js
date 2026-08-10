@@ -14,7 +14,7 @@ window.APP_CONFIG = {
   // URL do Web App do Google Apps Script (termina em /exec).
   // Enquanto estiver vazio, o app roda 100% offline (salva no navegador).
   // Preencha depois de publicar o backend (ver apps-script/ e README).
-  APPS_SCRIPT_URL: "",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzSKiGaKZT9SseDQ_c86SdLdqv1d7VMIsP_Krzca2CIRzPZSbHoxcyVfFwRgcd30NpX/exec",
 
   // -------------------------------------------------------------------
   // MOTOR DE IA
