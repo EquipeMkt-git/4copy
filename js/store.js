@@ -27,9 +27,14 @@
     // Content-Type text/plain evita preflight CORS no Apps Script.
     return fetch(url, {
       method: "POST", redirect: "follow", signal: ctrl.signal,
-      body: JSON.stringify(Object.assign({ action: action }, data || {}))
+      body: JSON.stringify(Object.assign({ action: action, token: sessionToken() }, data || {}))
     }).then(function (r) { clearTimeout(to); return r.json(); })
-      .then(function (j) { if (j && j.ok === false) throw new Error(j.error || "Erro no backend"); return j; })
+      .then(function (j) {
+        // Sessão vencida ou conta desativada: volta para a tela de login.
+        if (j && j.error === "SESSAO_INVALIDA") { localStorage.removeItem(NS + "session"); location.reload(); }
+        if (j && j.ok === false) throw new Error(j.error || "Erro no backend");
+        return j;
+      })
       .catch(function (e) { clearTimeout(to); throw e; });
   }
 
@@ -61,7 +66,13 @@
   }
 
   /* ------------ sessão / usuários ------------ */
-  function currentUser() { return lsGet("session", null); }
+  function sessionToken() { var s = lsGet("session", null); return s && s.token ? s.token : ""; }
+  function currentUser() {
+    var s = lsGet("session", null);
+    // Sessões antigas, sem token, precisam entrar de novo para sincronizar com o backend.
+    if (s && hasBackend() && !s.token) { localStorage.removeItem(NS + "session"); return null; }
+    return s;
+  }
   function setSession(u) { lsSet("session", u); }
 
   function signup(name, email, password) {
@@ -70,7 +81,7 @@
     if (password.length < 4) return Promise.reject(new Error("A senha precisa de ao menos 4 caracteres."));
     if (hasBackend()) {
       return callBackend("signup", { name: name, email: email, pass: simpleHash(password) })
-        .then(function (r) { var u = { id: r.userId || uid("u"), name: name, email: email }; setSession(u); return u; });
+        .then(function () { throw new Error("Cadastro enviado. Aguarde a aprovação da equipe para entrar."); });
     }
     var users = lsGet("users", {});
     if (users[email]) return Promise.reject(new Error("Já existe uma conta com esse e-mail."));
@@ -83,7 +94,7 @@
     email = String(email || "").trim().toLowerCase();
     if (hasBackend()) {
       return callBackend("login", { email: email, pass: simpleHash(password) })
-        .then(function (r) { var u = { id: r.userId, name: r.name || email, email: email }; setSession(u); return u; });
+        .then(function (r) { var u = { id: r.userId, name: r.name || email, email: email, token: r.token }; setSession(u); return u; });
     }
     var users = lsGet("users", {});
     var u = users[email];
@@ -91,7 +102,10 @@
     var pub = { id: u.id, name: u.name, email: email }; setSession(pub); return Promise.resolve(pub);
   }
 
-  function logout() { localStorage.removeItem(NS + "session"); }
+  function logout() {
+    if (hasBackend() && sessionToken()) callBackend("logout", {}).catch(function () {});
+    localStorage.removeItem(NS + "session");
+  }
 
   /* ------------ projetos (copys salvas) ------------ */
   // Estrutura de projeto:
@@ -103,7 +117,7 @@
     var u = currentUser();
     var mine = allProjects().filter(function (p) { return u && p.ownerId === u.id; });
     if (hasBackend()) {
-      callBackend("listProjects", { userId: u && u.id }).then(function (r) {
+      callBackend("listProjects", {}).then(function (r) {
         if (r && r.projects) { mergeRemote(r.projects); }
       }).catch(function () {});
     }

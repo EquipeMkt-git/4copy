@@ -47,7 +47,7 @@
       mode = m;
       tabs.forEach(function (t) { t.classList.toggle("active", t.getAttribute("data-mode") === m); });
       fName.hidden = m !== "signup";
-      submit.textContent = m === "signup" ? "Criar conta e entrar" : "Entrar";
+      submit.textContent = m === "signup" ? "Solicitar acesso" : "Entrar";
       form.password.setAttribute("autocomplete", m === "signup" ? "new-password" : "current-password");
       errBox.innerHTML = "";
     }
